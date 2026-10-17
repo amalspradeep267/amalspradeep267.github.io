@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Amal S Pradeep · Robotics Engineer</title>
+  <meta name="description" content="Portfolio of Amal S Pradeep, robotics engineer: mechanical design, simulation and embedded control." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Titillium+Web:ital,wght@0,400;0,600;0,700;0,900;1,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Start lights -->
+  <div class="lights" id="lights" aria-hidden="true">
+    <div class="lights__gantry">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <p class="lights__hint">Press any key to skip</p>
+  </div>
+
+  <!-- Top HUD -->
+  <header class="hud">
+    <a class="hud__tag" href="#home"><b id="hudName">AP</b><span id="hudNumber">#27</span></a>
+    <div class="hud__lap"><span class="hud__lapnum">LAP <b id="lapNum">1</b>/<span id="lapTotal">7</span></span><span class="hud__lapname" id="lapName">HOME</span></div>
+    <div class="hud__right">
+      <span class="hud__status"><i></i><span id="hudStatus"></span></span>
+      <span class="hud__clock" id="clock">00:00:00</span>
+    </div>
+  </header>
+
+  <!-- Gear nav -->
+  <nav class="gears" aria-label="Sections">
+    <a href="#home" data-gear="N"><b>N</b><span>Home</span></a>
+    <a href="#telemetry" data-gear="1"><b>1</b><span>Telemetry</span></a>
+    <a href="#projects" data-gear="2"><b>2</b><span>Projects</span></a>
+    <a href="#experience" data-gear="3"><b>3</b><span>Experience</span></a>
+    <a href="#skills" data-gear="4"><b>4</b><span>Setup</span></a>
+    <a href="#education" data-gear="5"><b>5</b><span>Education</span></a>
+    <a href="#contact" data-gear="6"><b>6</b><span>Contact</span></a>
+  </nav>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero" id="home" data-name="HOME">
+      <svg class="hero__track" viewBox="0 0 1000 600" aria-hidden="true">
+        <path id="trackPath" d="M140 470 C 90 470 70 420 95 380 L 230 170 C 260 120 320 100 380 120 L 520 165 C 570 180 600 160 630 120 L 690 70 C 730 40 800 50 830 95 L 905 230 C 935 285 915 340 860 360 L 640 430 C 590 446 560 480 545 520 C 530 560 490 575 450 560 L 300 505 C 260 490 200 470 140 470 Z" />
+        <circle id="trackCar" r="7" />
+      </svg>
+      <div class="hero__inner">
+        <p class="eyebrow reveal" id="eyebrow"></p>
+        <h1 class="hero__name reveal" id="heroName"></h1>
+        <p class="hero__role reveal" id="heroRole"></p>
+        <p class="hero__tagline reveal" id="heroTagline"></p>
+        <dl class="facts reveal" id="facts"></dl>
+        <div class="cta reveal" id="cta"></div>
+      </div>
+      <a class="scrollcue" href="#telemetry"><span>Scroll to start</span><i></i></a>
+    </section>
+
+    <!-- Telemetry dials -->
+    <section class="section" id="telemetry" data-name="TELEMETRY">
+      <div class="section__head reveal">
+        <span class="section__gear">1</span>
+        <div><h2>Telemetry</h2><p>Numbers from the work, read off the dash.</p></div>
+      </div>
+      <div class="dials" id="dials"></div>
+    </section>
+
+    <!-- Projects wheel -->
+    <section class="wheelsec" id="projects" data-name="PROJECTS">
+      <div class="wheelsec__sticky">
+        <div class="section__head section__head--wheel">
+          <span class="section__gear">2</span>
+          <div><h2>Projects</h2><p>Scroll to turn the wheel. Click a badge to jump.</p></div>
+        </div>
+        <div class="wheelsec__stage">
+          <div class="wheel" id="wheel"></div>
+          <article class="panel" id="panel" aria-live="polite"></article>
+        </div>
+        <div class="stint" id="stint"></div>
+      </div>
+    </section>
+
+    <!-- Experience -->
+    <section class="section" id="experience" data-name="EXPERIENCE">
+      <div class="section__head reveal">
+        <span class="section__gear">3</span>
+        <div><h2>Race history</h2><p>Where I've worked and what I did there.</p></div>
+      </div>
+      <ol class="tower" id="tower"></ol>
+    </section>
+
+    <!-- Skills -->
+    <section class="section" id="skills" data-name="SETUP">
+      <div class="section__head reveal">
+        <span class="section__gear">4</span>
+        <div><h2>Setup sheet</h2><p>The tools I reach for, grouped by job.</p></div>
+      </div>
+      <div class="setup" id="setup"></div>
+    </section>
+
+    <!-- Education -->
+    <section class="section" id="education" data-name="EDUCATION">
+      <div class="section__head reveal">
+        <span class="section__gear">5</span>
+        <div><h2>Education</h2><p>Degrees and the coursework behind them.</p></div>
+      </div>
+      <div class="edu" id="edu"></div>
+    </section>
+
+    <!-- Contact -->
+    <section class="section contact" id="contact" data-name="CONTACT">
+      <div class="section__head reveal">
+        <span class="section__gear">6</span>
+        <div><h2>Pit radio</h2><p>Get in touch.</p></div>
+      </div>
+      <div class="radio reveal" id="radio"></div>
+    </section>
+  </main>
+
+  <footer class="footer" id="footer"></footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
