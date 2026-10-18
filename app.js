@@ -77,6 +77,7 @@
   let seen = false, lightsDoneAt = -1e9;
   try { seen = sessionStorage.getItem("lightsOut") === "1"; } catch (e) {}
   const finishLights = () => {
+    if (lights.classList.contains("is-done")) return;     // already out; don't treat later key presses as a skip
     lights.classList.add("is-done");
     lightsDoneAt = performance.now();
     try { sessionStorage.setItem("lightsOut", "1"); } catch (e) {}
@@ -751,7 +752,7 @@
     document.body.classList.toggle("is-locked", locked);
     ign.classList.toggle("is-on", !locked);
     hint.textContent = locked ? "Turn the key to start" : "Engine on";
-    sub.textContent = locked ? "Twist it, click it, or press Enter" : "Scroll, or pick a gear";
+    sub.textContent = locked ? "Scroll down, twist it, or click it" : "Scroll, or pick a gear";
   };
   const startEngine = () => {
     if (engineOn) return;
@@ -798,6 +799,33 @@
   keyHost.addEventListener("pointerup", endDrag);
   keyHost.addEventListener("pointercancel", endDrag);
   keyHost.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); turnKey(); } });
+
+  // Scrolling down on the locked page twists the key too; past 60% it finishes and starts the engine
+  const SCROLL_FULL = 420;                  // scroll distance (px) for a full twist
+  let scrollTwist = 0, twistTimer = 0;
+  const lightsUp = () => !lights.classList.contains("is-done") || performance.now() - lightsDoneAt < 400;
+  const scrollTurn = (dy) => {
+    if (engineOn || drag || lightsUp() || (animTo && animTo.to === KEY_ON)) return;
+    animTo = null;
+    scrollTwist = Math.min(Math.max(scrollTwist + dy, 0), SCROLL_FULL);
+    angle = (KEY_ON * scrollTwist) / SCROLL_FULL;
+    clearTimeout(twistTimer);
+    if (angle >= KEY_ON * 0.6) { scrollTwist = 0; return turnKey(); }
+    twistTimer = setTimeout(() => { if (!engineOn) { scrollTwist = 0; turnTo(0); } }, 450);
+  };
+  addEventListener("wheel", (e) => { if (!engineOn && e.deltaY > 0) scrollTurn(e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY); }, { passive: true });
+  let touchY = null;
+  addEventListener("touchstart", (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (engineOn || touchY === null || e.target.closest("#ignitionKey")) return;
+    const y = e.touches[0].clientY, dy = touchY - y;
+    touchY = y;
+    if (dy > 0) scrollTurn(dy * 2);
+  }, { passive: true });
+  addEventListener("keydown", (e) => {
+    if (engineOn || lightsUp() || e.target.closest("input, textarea")) return;
+    if (["ArrowDown", "PageDown", "End"].includes(e.key) || (e.key === " " && e.target === document.body)) { e.preventDefault(); turnKey(); }
+  });
 
   // While locked, the gears and number keys point you back to the key
   gearLinks.forEach((a, i) => a.addEventListener("click", (e) => { if (!engineOn && i > 0) { e.preventDefault(); nudge(); } }));
