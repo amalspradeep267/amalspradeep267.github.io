@@ -23,9 +23,10 @@
   $("#heroTagline").textContent = p.tagline;
   $("#facts").innerHTML = p.facts.map((f) => `<div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`).join("");
 
+  const emails = p.emails || [];
   const buttons = (primaryLabel) => {
     const out = [];
-    if (p.email) out.push(`<a class="btn btn--primary" href="mailto:${esc(p.email)}">${esc(primaryLabel)}</a>`);
+    if (emails[0]) out.push(`<a class="btn btn--primary" href="mailto:${esc(emails[0])}">${esc(primaryLabel)}</a>`);
     if (p.resumeUrl) out.push(`<a class="btn" href="${esc(p.resumeUrl)}" target="_blank" rel="noopener">Resume</a>`);
     for (const l of S.links) out.push(`<a class="btn" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`);
     return out.join("");
@@ -66,17 +67,18 @@
     <div class="radio__label"><span class="wave">${"<i></i>".repeat(9)}</span> RADIO · ${esc(p.shortName)} #${esc(p.number)}</div>
     <h3>${esc(S.contact.heading)}</h3>
     <p>${esc(S.contact.body)}</p>
+    <ul class="radio__emails">${emails.map((m) => `<li><a href="mailto:${esc(m)}">${esc(m)}</a></li>`).join("")}</ul>
     <div class="cta">${buttons("Email me")}</div>`;
 
   $("#footer").innerHTML = `<span>© ${new Date().getFullYear()} ${esc(p.name)}</span><span>Keys 0–6 change gear · ↑↓ to scroll</span>`;
 
   /* ---------- Start lights (once per session) ---------- */
   const lights = $("#lights");
-  let seen = false;
+  let seen = false, lightsDoneAt = -1e9;
   try { seen = sessionStorage.getItem("lightsOut") === "1"; } catch (e) {}
   const finishLights = () => {
     lights.classList.add("is-done");
-    document.body.classList.add("is-racing");
+    lightsDoneAt = performance.now();
     try { sessionStorage.setItem("lightsOut", "1"); } catch (e) {}
   };
   if (matchMedia("(hover: none)").matches) $(".lights__hint", lights).textContent = "Tap to skip";
@@ -123,57 +125,90 @@
     requestAnimationFrame(run);
   }
 
-  /* ---------- Dials ---------- */
-  const START = 135, SWEEP = 270, R = 80, CX = 100, CY = 100;
-  const polar = (deg, r) => { const a = (deg * Math.PI) / 180; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
-  const arcPath = (r) => {
-    const [x1, y1] = polar(START, r), [x2, y2] = polar(START + SWEEP, r);
-    return `M ${x1} ${y1} A ${r} ${r} 0 1 1 ${x2} ${y2}`;
+  /* ---------- Instrument cluster (Telemetry) ---------- */
+  const A0 = 135, SWEEP = 270;                                   // scale runs from 7:30 round to 4:30
+  const pt = (deg, r) => { const a = (deg * Math.PI) / 180; return [r * Math.cos(a), r * Math.sin(a)]; };
+  const arcD = (r, a0, a1) => {
+    const [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r);
+    return `M ${x0} ${y0} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`;
   };
-  const arcLen = (2 * Math.PI * R * SWEEP) / 360;
-  const dialsHost = $("#dials");
-  S.telemetry.forEach((m) => {
-    const frac = Math.min(m.value / m.max, 1);
-    let ticks = "";
-    for (let i = 0; i <= 40; i++) {
-      const major = i % 10 === 0;
-      const deg = START + (SWEEP * i) / 40;
-      const [x1, y1] = polar(deg, major ? 62 : 66), [x2, y2] = polar(deg, 71);
-      ticks += `<line class="tick${major ? " tick--major" : ""}" data-f="${i / 40}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  // Shared gradients for pods and wheel
+  document.body.insertAdjacentHTML("beforeend", `
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <linearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2c31"/><stop offset=".5" stop-color="#0d0e10"/><stop offset="1" stop-color="#1a1b1f"/></linearGradient>
+      <linearGradient id="chromeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dbe0"/><stop offset=".35" stop-color="#4a4d55"/><stop offset=".65" stop-color="#9a9da5"/><stop offset="1" stop-color="#2a2c31"/></linearGradient>
+      <radialGradient id="faceDark" cx=".5" cy=".42" r=".6"><stop offset="0" stop-color="#17191d"/><stop offset=".75" stop-color="#08090a"/><stop offset="1" stop-color="#030304"/></radialGradient>
+      <radialGradient id="faceTrack" cx=".5" cy=".42" r=".6"><stop offset="0" stop-color="#d0141c"/><stop offset=".7" stop-color="#8e0a10"/><stop offset="1" stop-color="#4a0407"/></radialGradient>
+    </defs></svg>`);
+
+  const podSvg = (m) => {
+    const span = m.max - m.min;
+    let ticks = "", nums = "";
+    const minor = 48;
+    for (let i = 0; i <= minor; i++) {
+      const [x1, y1] = pt(A0 + (SWEEP * i) / minor, 88), [x2, y2] = pt(A0 + (SWEEP * i) / minor, 94);
+      ticks += `<line class="pod__tick" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
     }
-    const [sx, sy] = polar(START, 50), [ex, ey] = polar(START + SWEEP, 50);
-    const card = el("div", { class: "dial reveal" }, `
-      <svg viewBox="0 0 200 200" role="img" aria-label="${esc(m.label)}: ${m.value}${esc(m.unit)}">
-        <circle class="ring" cx="100" cy="100" r="96"/>
-        <path class="track" d="${arcPath(R)}"/>
-        <path class="fill" d="${arcPath(R)}" style="stroke-dasharray:${arcLen};stroke-dashoffset:${arcLen}"/>
-        ${ticks}
-        <text class="scale" x="${sx}" y="${sy + 4}" text-anchor="middle">0</text>
-        <text class="scale" x="${ex}" y="${ey + 4}" text-anchor="middle">${m.max}</text>
-        <text class="value" x="100" y="106" text-anchor="middle">0</text>
-        <text class="unit" x="100" y="128" text-anchor="middle">${esc(m.unit || "")}</text>
-      </svg>
-      <p class="dial__label">${esc(m.label)}</p>
-      <p class="dial__src">${esc(m.source)}</p>`);
-    card._run = () => {
-      card.querySelector(".fill").style.strokeDashoffset = String(arcLen * (1 - frac));
-      card.querySelectorAll(".tick").forEach((t) => { if (+t.dataset.f <= frac) t.classList.add("is-lit"); });
-      const out = card.querySelector(".value");
+    for (let v = m.min; v <= m.max + 1e-9; v += m.step) {
+      const a = A0 + (SWEEP * (v - m.min)) / span;
+      const [x1, y1] = pt(a, 82), [x2, y2] = pt(a, 95), [tx, ty] = pt(a, 68);
+      ticks += `<line class="pod__tick pod__tick--major" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      nums += `<text class="pod__num" x="${tx}" y="${ty}">${+v.toFixed(2)}</text>`;
+    }
+    return `
+      <svg viewBox="-120 -120 240 240" role="img" aria-label="${esc(m.label)}: ${m.value} ${esc(m.unit || "")}">
+        <circle r="118" fill="url(#bezelGrad)"/>
+        <circle r="110" fill="none" stroke="url(#chromeGrad)" stroke-width="3"/>
+        <circle class="pod__face" r="106"/>
+        <path class="pod__sweep" d="${arcD(99, A0, A0 + 0.01)}"/>
+        ${ticks}${nums}
+        <text class="pod__value" x="0" y="48">${(m.min).toFixed(m.decimals || 0)}</text>
+        <text class="pod__unit" x="0" y="68">${esc(m.unit || "")}</text>
+        <g class="pod__needle"><path d="M -16 -2.2 L 92 -0.7 L 92 0.7 L -16 2.2 Z"/></g>
+        <circle class="pod__hub" r="9"/>
+        <ellipse class="pod__glass" cx="-26" cy="-58" rx="70" ry="34" transform="rotate(-24)"/>
+      </svg>`;
+  };
+
+  const tele = S.telemetry;
+  const mainIdx = Math.max(0, tele.findIndex((m) => m.main));
+  const left = [], right = [];
+  tele.filter((_, i) => i !== mainIdx).forEach((m, i) => (i % 2 ? right : left).push(m));
+  const ordered = [...left.slice().reverse(), tele[mainIdx], ...right];
+  const clusterHost = $("#dials");
+  ordered.forEach((m, k) => {
+    const dist = Math.abs(k - left.length);
+    const pod = el("div", { class: `pod reveal ${dist === 0 ? "pod--main pod--track" : dist === 1 ? "pod--near" : "pod--far"}` },
+      `${podSvg(m)}<p class="pod__label">${esc(m.label)}</p><p class="pod__detail">${esc(m.detail || "")}</p>`);
+    if (dist !== 0 && matchMedia("(hover: hover)").matches) {
+      pod.addEventListener("mouseenter", () => pod.classList.add("pod--track"));
+      pod.addEventListener("mouseleave", () => pod.classList.remove("pod--track"));
+    }
+    pod._run = () => {
+      const needle = pod.querySelector(".pod__needle"), sweep = pod.querySelector(".pod__sweep");
+      const out = pod.querySelector(".pod__value");
+      const frac = Math.min(Math.max((m.value - m.min) / (m.max - m.min), 0), 1);
       const dec = m.decimals || 0;
-      if (reduced) { out.textContent = m.value.toFixed(dec); return; }
-      const t0 = performance.now(), dur = 1600;
-      const step = (t) => {
-        const k = Math.min((t - t0) / dur, 1), e = 1 - Math.pow(1 - k, 3);
-        out.textContent = (m.value * e).toFixed(dec);
-        if (k < 1) requestAnimationFrame(step);
+      const draw = (e) => {
+        const a = A0 + SWEEP * frac * e;
+        needle.setAttribute("transform", `rotate(${a})`);
+        sweep.setAttribute("d", arcD(99, A0, Math.max(a, A0 + 0.01)));
+        out.textContent = (m.min + (m.value - m.min) * e).toFixed(dec);
       };
+      if (reduced) return draw(1);
+      const t0 = performance.now(), dur = 1900;
+      const step = (t) => {
+        const k2 = Math.min((t - t0) / dur, 1);
+        const e = k2 < 1 ? 1 - Math.pow(1 - k2, 3) + Math.sin(k2 * Math.PI) * 0.04 : 1;   // slight overshoot, like a sweeping needle
+        draw(Math.min(e, 1.03));
+        if (k2 < 1) requestAnimationFrame(step); else draw(1);
+      };
+      needle.setAttribute("transform", `rotate(${A0})`);
       requestAnimationFrame(step);
     };
-    dialsHost.appendChild(card);
+    pod.querySelector(".pod__needle").setAttribute("transform", `rotate(${A0})`);
+    clusterHost.appendChild(pod);
   });
-  // Shared gradient for the dial fills
-  const defs = el("div", {}, `<svg width="0" height="0" style="position:absolute"><defs><linearGradient id="dialGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#7a0400"/><stop offset=".6" stop-color="#e10600"/><stop offset="1" stop-color="#ff5a3c"/></linearGradient></defs></svg>`);
-  document.body.appendChild(defs.firstChild);
 
   /* ---------- Projects wheel ---------- */
   const projects = S.projects;
@@ -184,29 +219,49 @@
   const panel = $("#panel");
   const stint = $("#stint");
 
-  const spokes = Array.from({ length: 5 }, (_, i) => {
-    const a = i * 72;
-    return [-8, 8].map((o) => `<g transform="rotate(${a + o})"><path class="spoke" d="M -7 -74 L -13 -346 L 13 -346 L 7 -74 Z"/></g>`).join("");
-  }).join("");
-  const sidewall = `${p.name} · ${p.role} · `.toUpperCase().repeat(3);
+  // Slick tyre with a split compound stripe and sidewall lettering, black wheel cover and centre-lock nut
+  const vents = Array.from({ length: 5 }, (_, i) =>
+    `<path class="vent" transform="rotate(${i * 72})" d="M -20 -148 L -30 -236 Q 0 -250 30 -236 L 20 -148 Q 0 -140 -20 -148 Z"/>`).join("");
   const badges = projects.map((pr, i) => `
-    <g class="badge" data-i="${i}" transform="rotate(${-i * STEP}) translate(410 0)">
-      <g class="badge__up"><circle r="40"/><text>${String(i + 1).padStart(2, "0")}</text></g>
+    <g class="badge" data-i="${i}" transform="rotate(${-i * STEP}) translate(342 0)">
+      <g class="badge__up"><circle r="30"/><text>${String(i + 1).padStart(2, "0")}</text></g>
     </g>`).join("");
+  const topText = (p.name).toUpperCase();
+  const bottomText = p.role.split(" ")[0].toUpperCase();
   wheelHost.innerHTML = `
     <svg viewBox="-520 -520 1040 1040" aria-hidden="true">
-      <defs><path id="sidewallPath" d="M -425 0 A 425 425 0 1 1 425 0 A 425 425 0 1 1 -425 0"/></defs>
+      <defs>
+        <radialGradient id="tyreShade" r=".5"><stop offset=".6" stop-color="#060607"/><stop offset=".86" stop-color="#151517"/><stop offset=".96" stop-color="#0d0d0e"/><stop offset="1" stop-color="#050505"/></radialGradient>
+        <radialGradient id="rimFace" cx=".45" cy=".4" r=".6"><stop offset="0" stop-color="#1c1d21"/><stop offset=".8" stop-color="#0a0a0c"/><stop offset="1" stop-color="#050506"/></radialGradient>
+        <radialGradient id="hubGrad" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#2b2d32"/><stop offset="1" stop-color="#0b0b0d"/></radialGradient>
+        <radialGradient id="nutTip" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#f3ff8a"/><stop offset=".6" stop-color="#c3d531"/><stop offset="1" stop-color="#6f7a12"/></radialGradient>
+        <filter id="rubber" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7"/>
+          <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/>
+          <feComposite in2="SourceGraphic" operator="in"/>
+        </filter>
+        <path id="topArc" d="${arcD(380, 202, 338)}"/>
+        <path id="botArc" d="M ${pt(158, 428).join(" ")} A 428 428 0 0 0 ${pt(22, 428).join(" ")}"/>
+      </defs>
       <g id="wheelRot">
-        <circle class="tyre" r="470"/>
-        <circle class="tyre-edge" r="468"/>
-        <text class="sidewall"><textPath href="#sidewallPath">${esc(sidewall)}</textPath></text>
-        <circle class="band" r="378"/>
-        <circle class="rim" r="358"/>
-        ${spokes}
-        <circle class="hub" r="78"/>
-        <polygon class="nut" points="0,-34 29,-17 29,17 0,34 -29,17 -29,-17"/>
+        <circle r="472" fill="url(#tyreShade)"/>
+        <circle r="472" fill="#fff" filter="url(#rubber)"/>
+        <circle r="468" fill="none" stroke="#1e1f22" stroke-width="2"/>
+        <path class="stripe" d="${arcD(392, -50, 50)}"/>
+        <path class="stripe" d="${arcD(392, 130, 230)}"/>
+        <text class="wall-text"><textPath href="#topArc" startOffset="50%" text-anchor="middle">${esc(topText)}</textPath></text>
+        <text class="wall-text wall-text--sm"><textPath href="#botArc" startOffset="50%" text-anchor="middle">${esc(bottomText)}</textPath></text>
+        <circle r="306" fill="#020203"/>
+        <circle r="298" fill="url(#rimFace)" stroke="#2c2e33" stroke-width="3"/>
+        <circle r="262" fill="none" stroke="#17181b" stroke-width="10"/>
+        <circle r="196" fill="none" stroke="#141518" stroke-width="2"/>
+        ${vents}
+        <circle r="72" fill="url(#hubGrad)" stroke="#2e3036" stroke-width="4"/>
+        <polygon points="0,-36 31,-18 31,18 0,36 -31,18 -31,-18" fill="#17181b" stroke="#3a3c42" stroke-width="2"/>
+        <circle r="15" fill="url(#nutTip)"/>
         ${badges}
       </g>
+      <ellipse class="gloss" cx="-150" cy="-250" rx="230" ry="90" transform="rotate(-35 -150 -250)"/>
       <polygon class="pointer" points="492,0 516,-16 516,16"/>
     </svg>`;
   const rot = $("#wheelRot", wheelHost);
@@ -216,22 +271,32 @@
 
   const renderPanel = (i) => {
     const pr = projects[i];
+    const primary = (pr.links || [])[0];
+    const title = primary
+      ? `<a class="panel__title" href="${esc(primary.url)}" target="_blank" rel="noopener">${esc(pr.name)}</a>`
+      : esc(pr.name);
     panel.innerHTML = `
       <div class="panel__top"><span class="panel__num">${String(i + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}</span><span>${esc(pr.date)}</span></div>
-      <h3>${esc(pr.name)}</h3>
+      <h3>${title}</h3>
       <p class="panel__kind">${esc(pr.kind)}</p>
-      ${pr.image ? `<div class="panel__media" role="img" aria-label="${esc(pr.name)}" style="background-image:url('${esc(pr.image)}')"></div>` : ""}
-      <p class="panel__desc">${esc(pr.description)}</p>
+      ${pr.image ? `<div class="panel__media" role="img" aria-label="${esc(pr.name)}" style="background-image:url('${esc(pr.image)}')"><span class="panel__open">View project ↗</span></div>` : ""}
+      <p class="panel__desc"><span class="d-long">${esc(pr.description)}</span><span class="d-short">${esc(pr.summary || pr.description)}</span></p>
       <div class="tags">${pr.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       <div class="panel__row">
         ${pr.metric ? `<div class="metric"><b>${esc(pr.metric.value)}</b><span>${esc(pr.metric.label)}</span></div>` : "<span></span>"}
-        <div class="panel__links">${(pr.links || []).map((l) => `<a class="btn" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}</div>
+        <div class="panel__links">${(pr.links || []).map((l, j) => `<a class="btn${j === 0 ? " btn--primary" : ""}" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}</div>
       </div>`;
+    panel.dataset.href = primary ? primary.url : "";
     panel.classList.remove("is-swap"); void panel.offsetWidth; panel.classList.add("is-swap");
     badgeEls.forEach((b, j) => b.classList.toggle("is-focus", j === i));
     bars.forEach((b, j) => { b.classList.toggle("is-done", j < i); b.classList.toggle("is-now", j === i); });
     $("#stintText").textContent = `STINT ${i + 1}/${N}`;
   };
+  // Clicking anywhere on the card opens the project (links inside it still work on their own)
+  panel.addEventListener("click", (e) => {
+    if (e.target.closest("a") || !panel.dataset.href) return;
+    window.open(panel.dataset.href, "_blank", "noopener");
+  });
 
   const sizeWheelSection = () => { wheelSec.style.height = `${N * 80 + 20}svh`; };
   sizeWheelSection();
@@ -287,7 +352,7 @@
   const setGear = () => {
     const mid = innerHeight * 0.4;
     let active = 0;
-    sections.forEach((s, i) => { if (s.getBoundingClientRect().top <= mid) active = i; });
+    sections.forEach((s, i) => { if (s.offsetParent && s.getBoundingClientRect().top <= mid) active = i; });
     gearLinks.forEach((a, i) => a.classList.toggle("is-active", i === active));
     $("#lapNum").textContent = active + 1;
     $("#lapName").textContent = sections[active].dataset.name;
@@ -299,4 +364,136 @@
     if (e.target.closest("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^[0-6]$/.test(e.key)) sections[+e.key]?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
   });
+  /* ---------- Ignition key: turning it unlocks everything below Neutral ---------- */
+  const ign = $("#ignition");
+  const keyHost = $("#ignitionKey");
+  const hint = $("#ignitionHint");
+  const KEY_ON = 78;                       // degrees to START
+  const HOLE = [208, 0];                   // lanyard loop, in key coordinates
+  let engineOn = false;
+  try { engineOn = sessionStorage.getItem("engineOn") === "1"; } catch (e) {}
+
+  const labels = [["OFF", -118], ["ACC", -82], ["ON", -46], ["START", -10]]
+    .map(([t, a]) => { const [x, y] = pt(a - 90 + 90, 104); return `<text class="ig__label" x="${x}" y="${y}" transform="rotate(${a + 90} ${x} ${y})">${t}</text>`; }).join("");
+  const knurl = Array.from({ length: 34 }, (_, i) => {
+    const a = 100 + i * 4.2; const [x1, y1] = pt(a, 78), [x2, y2] = pt(a, 90);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  }).join("");
+  keyHost.innerHTML = `
+    <svg viewBox="-130 -140 420 340" aria-hidden="true">
+      <defs>
+        <linearGradient id="alu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f5f7"/><stop offset=".45" stop-color="#b9bcc3"/><stop offset=".55" stop-color="#9da1a9"/><stop offset="1" stop-color="#e3e5e9"/></linearGradient>
+        <linearGradient id="aluEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#6d7079"/></linearGradient>
+        <linearGradient id="chromeBit" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b6e76"/><stop offset=".35" stop-color="#f2f3f5"/><stop offset=".6" stop-color="#9a9da4"/><stop offset="1" stop-color="#4b4e55"/></linearGradient>
+        <pattern id="braid" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+          <rect width="10" height="10" fill="#b3121a"/><rect width="10" height="4" fill="#7c0a10"/>
+        </pattern>
+      </defs>
+      <!-- barrel -->
+      <circle r="118" class="ig__bezel"/>
+      <circle r="92" class="ig__ring"/>
+      <g class="ig__knurl">${knurl}</g>
+      ${labels}
+      <rect class="ig__notch" x="-6" y="-134" width="12" height="26" rx="4"/>
+      <circle r="62" class="ig__throat"/>
+      <!-- key -->
+      <g id="keyRot" class="ig__keygrp">
+        <rect x="-14" y="-16" width="70" height="32" rx="6" class="ig__stem"/>
+        <path class="ig__fob" d="M 40 -58 L 214 -50 Q 248 -48 248 -14 L 248 14 Q 248 48 214 50 L 40 58 Q 22 58 22 40 L 22 -40 Q 22 -58 40 -58 Z"/>
+        <path class="ig__fobhi" d="M 44 -50 L 210 -43 Q 238 -41 240 -18"/>
+        <rect x="190" y="-17" width="40" height="34" rx="12" class="ig__hole"/>
+        <rect x="88" y="-26" width="58" height="52" rx="10" class="ig__badge"/>
+        <text x="117" y="2" class="ig__mono">AP</text>
+      </g>
+      <!-- lanyard (kept hanging under gravity in JS) -->
+      <g id="lanyard">
+        <path d="M -6 0 C -8 50 -4 100 -3 150 L 3 150 C 4 100 8 50 6 0 Z" fill="url(#braid)"/>
+        <rect x="-15" y="148" width="30" height="40" rx="5" fill="url(#chromeBit)"/>
+        <rect x="-15" y="174" width="30" height="3" fill="#c3121a"/>
+      </g>
+    </svg>`;
+  const keyRot = $("#keyRot", keyHost);
+  const lanyard = $("#lanyard", keyHost);
+  const keySvg = keyHost.querySelector("svg");
+
+  let angle = engineOn ? KEY_ON : 0, swing = 0, swingV = 0, lastHx = null, animTo = null;
+  const holeAt = (deg) => { const a = (deg * Math.PI) / 180; return [HOLE[0] * Math.cos(a) - HOLE[1] * Math.sin(a), HOLE[0] * Math.sin(a) + HOLE[1] * Math.cos(a)]; };
+  const drawKey = () => {
+    keyRot.setAttribute("transform", `rotate(${angle})`);
+    const [hx, hy] = holeAt(angle);
+    if (lastHx !== null && !reduced) swingV -= (hx - lastHx) * 0.22;
+    lastHx = hx;
+    swingV += -swing * 0.06; swingV *= 0.93; swing += swingV;
+    lanyard.setAttribute("transform", `translate(${hx} ${hy}) rotate(${swing})`);
+  };
+  const loop = (t) => {
+    if (animTo) {
+      const k = Math.min((t - animTo.t0) / animTo.dur, 1), e = 1 - Math.pow(1 - k, 3);
+      angle = animTo.from + (animTo.to - animTo.from) * e;
+      if (k >= 1) { const done = animTo.done; animTo = null; done && done(); }
+    }
+    drawKey();
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  const turnTo = (to, done) => { animTo = { from: angle, to, t0: performance.now(), dur: reduced ? 1 : 420 + Math.abs(to - angle) * 4, done }; };
+
+  const setLocked = (locked) => {
+    document.body.classList.toggle("is-locked", locked);
+    ign.classList.toggle("is-on", !locked);
+    hint.textContent = locked ? "Turn the key to start" : "Engine on · scroll or pick a gear";
+  };
+  const startEngine = () => {
+    if (engineOn) return;
+    engineOn = true;
+    try { sessionStorage.setItem("engineOn", "1"); } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate(35);
+    setLocked(false);
+    sizeWheelSection(); update(); setGear();
+    setTimeout(() => $("#telemetry").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }), reduced ? 0 : 650);
+  };
+  const turnKey = () => { if (!engineOn) turnTo(KEY_ON, startEngine); };
+  const nudge = () => {
+    ign.classList.remove("is-nudge"); void ign.offsetWidth; ign.classList.add("is-nudge");
+    swingV += 6;
+  };
+
+  // Drag to turn, or just click / press Enter
+  let drag = null;
+  const pointerAngle = (e) => {
+    const m = keySvg.getScreenCTM();
+    return (Math.atan2(e.clientY - m.f, e.clientX - m.e) * 180) / Math.PI;
+  };
+  keyHost.addEventListener("pointerdown", (e) => {
+    if (engineOn) return;
+    drag = { a0: pointerAngle(e), start: angle, x: e.clientX, y: e.clientY, moved: false };
+    keyHost.setPointerCapture(e.pointerId);
+    animTo = null;
+  });
+  keyHost.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 5) drag.moved = true;
+    let d = pointerAngle(e) - drag.a0;
+    if (d < -180) d += 360; if (d > 180) d -= 360;
+    angle = Math.min(Math.max(drag.start + d, 0), KEY_ON);
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    const { moved } = drag; drag = null;
+    if (!moved || angle > KEY_ON * 0.6) turnKey();
+    else turnTo(0);
+  };
+  keyHost.addEventListener("pointerup", endDrag);
+  keyHost.addEventListener("pointercancel", endDrag);
+  keyHost.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); turnKey(); } });
+
+  // While locked, the gears and number keys point you back to the key
+  gearLinks.forEach((a, i) => a.addEventListener("click", (e) => { if (!engineOn && i > 0) { e.preventDefault(); nudge(); } }));
+  addEventListener("keydown", (e) => {
+    if (engineOn || performance.now() - lightsDoneAt < 400) return;
+    if (/^[1-6]$/.test(e.key)) nudge();
+    if (e.key === "Enter" && e.target === document.body) turnKey();
+  });
+
+  setLocked(!engineOn);
 })();
