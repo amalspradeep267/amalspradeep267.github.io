@@ -132,6 +132,8 @@ main, .footer { margin-left: var(--rail-w); }
 }
 .hero__track { position: absolute; right: -4%; top: 50%; width: min(64vw, 980px); transform: translateY(-46%); opacity: .9; pointer-events: none; }
 .hero__track path { fill: none; stroke: #191c22; stroke-width: 26; stroke-linejoin: round; }
+.hero__portrait { opacity: .82; animation: portraitIn 1.6s .3s ease both; }
+@keyframes portraitIn { from { opacity: 0; } to { opacity: .82; } }
 .hero__track #trackCar { fill: var(--red); filter: drop-shadow(0 0 10px var(--red)) drop-shadow(0 0 22px rgba(225,6,0,.6)); }
 .hero__track .racing-line { fill: none; stroke: var(--red); stroke-width: 2; stroke-dasharray: 2 12; opacity: .45; }
 .hero__track .trail { fill: none; stroke: var(--red); stroke-width: 4; stroke-linecap: round; opacity: .8; }
@@ -451,6 +453,7 @@ body.is-igniting .gears a:nth-child(6) { animation-delay: .65s; } body.is-igniti
   .footer { padding-bottom: 90px; }
   .facts { grid-template-columns: 1fr; }
   .hero__track { width: 120vw; right: -40vw; opacity: .45; }
+  .hero__portrait { display: none; }
   .hero { padding-bottom: 96px; }
   .ignition { margin-top: 26px; gap: 16px; }
   .ignition__key { width: 118px; }

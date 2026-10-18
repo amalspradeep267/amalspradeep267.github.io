@@ -23,3 +23,14 @@ Open `index.html` in a browser. It works straight from disk.
 ## Hosting
 
 It's served by GitHub Pages from the `main` branch of this repo.
+
+## Portrait
+
+A faded portrait sits inside the race track on the home page (desktop only). To remove it, set `portrait: ""` in `data.js`.
+
+To go back to the version without the portrait completely:
+
+```
+git revert --no-edit v1-no-portrait..HEAD
+git push
+```

@@ -111,7 +111,17 @@
   trail.setAttribute("d", track.getAttribute("d"));
   trail.setAttribute("class", "trail");
   trackSvg.insertBefore(trail, car);
-  const L = track.getTotalLength();
+  // Optional portrait, feathered into the middle of the circuit (behind the track and the car)
+  if (p.portrait) {
+    trackSvg.insertAdjacentHTML("afterbegin", `
+      <defs>
+        <radialGradient id="portraitFade" cx=".5" cy=".46" r=".5">
+          <stop offset=".55" stop-color="#fff"/><stop offset=".8" stop-color="#fff" stop-opacity=".45"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+        <mask id="portraitMask" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#portraitFade)"/></mask>
+      </defs>
+      <image class="hero__portrait" href="${esc(p.portrait)}" x="345" y="150" width="320" height="320" mask="url(#portraitMask)" preserveAspectRatio="xMidYMid slice"><title>${esc(p.name)}</title></image>`);
+  }  const L = track.getTotalLength();
   const trailLen = L * 0.08;
   trail.style.strokeDasharray = `${trailLen} ${L}`;
   const place = (d) => {

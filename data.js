@@ -15,7 +15,8 @@ window.SITE = {
     ],
     resumeUrl: "media/Amal_S_Pradeep_Resume.pdf",   // leave empty to hide the Resume button
     emails: ["amalspradeep267@gmail.com", "souparnikapradeep.a@northeastern.edu"],   // first one is used by "Get in touch"
-    photo: ""                           // e.g. "media/profile.jpg"; empty shows initials
+    photo: "",                          // e.g. "media/profile.jpg"; empty shows initials
+    portrait: "media/portrait.jpg"      // faded inside the hero race track; set to "" to remove it
   },
 
   links: [
