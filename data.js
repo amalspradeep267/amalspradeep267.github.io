@@ -30,8 +30,8 @@ window.SITE = {
       label: "JEE Main percentile", detail: "Top 0.7% of ~1 million candidates in India" },
     { value: 60, min: 0, max: 100, step: 20, unit: "%",
       label: "Faster design iterations", detail: "Underwater ROV" },
-    { value: 30, min: 0, max: 40, step: 10, unit: "+",
-      label: "Structural parts released", detail: "Underwater ROV" }
+    { type: "gear", value: 4, max: 8,
+      label: "Dell × NVIDIA GB10 Hackathon", detail: "4th place · Hyperion · team of 4" }
   ],
   // Projects on the wheel, in order
   projects: [

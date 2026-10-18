@@ -141,7 +141,59 @@
       <radialGradient id="faceTrack" cx=".5" cy=".42" r=".6"><stop offset="0" stop-color="#d0141c"/><stop offset=".7" stop-color="#8e0a10"/><stop offset="1" stop-color="#4a0407"/></radialGradient>
     </defs></svg>`);
 
+  // Gear-indicator pod: gear numbers round the ring, a big digit in a window, and shift lights
+  const ordinal = (v) => (v % 100 >= 11 && v % 100 <= 13) ? "TH" : ({ 1: "ST", 2: "ND", 3: "RD" }[v % 10] || "TH");
+  const gearSvg = (m) => {
+    const n = m.max || 8;
+    let ticks = "", nums = "";
+    for (let i = 0; i <= 48; i++) {
+      const [x1, y1] = pt(A0 + (SWEEP * i) / 48, 88), [x2, y2] = pt(A0 + (SWEEP * i) / 48, 94);
+      ticks += `<line class="pod__tick" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+    }
+    for (let g = 1; g <= n; g++) {
+      const a = A0 + (SWEEP * (g - 1)) / (n - 1);
+      const [x1, y1] = pt(a, 82), [x2, y2] = pt(a, 95), [tx, ty] = pt(a, 70);
+      ticks += `<line class="pod__tick pod__tick--major" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      nums += `<text class="pod__num gear__num" data-g="${g}" x="${tx}" y="${ty}">${g}</text>`;
+    }
+    const leds = Array.from({ length: 5 }, (_, i) => `<circle class="gear__led" data-i="${i}" cx="${-32 + i * 16}" cy="72" r="5"/>`).join("");
+    return `
+      <svg viewBox="-120 -120 240 240" role="img" aria-label="${esc(m.label)}: ${m.value}${ordinal(m.value).toLowerCase()} place">
+        <circle r="118" fill="url(#bezelGrad)"/>
+        <circle r="110" fill="none" stroke="url(#chromeGrad)" stroke-width="3"/>
+        <circle class="pod__face" r="106"/>
+        ${ticks}${nums}
+        <rect class="gear__window" x="-34" y="-46" width="68" height="86" rx="12"/>
+        <text class="gear__digit" x="0" y="-1">N</text>
+        <text class="gear__suffix" x="22" y="-30"></text>
+        ${leds}
+        <ellipse class="pod__glass" cx="-26" cy="-58" rx="70" ry="34" transform="rotate(-24)"/>
+      </svg>`;
+  };
+  const runGear = (pod, m) => {
+    const digit = pod.querySelector(".gear__digit"), suffix = pod.querySelector(".gear__suffix");
+    const nums = [...pod.querySelectorAll(".gear__num")], leds = [...pod.querySelectorAll(".gear__led")];
+    const show = (g) => {
+      digit.textContent = g === 0 ? "N" : String(g);
+      nums.forEach((t) => t.classList.toggle("is-lit", +t.dataset.g === g));
+      const lit = Math.round((g / m.value) * leds.length);
+      leds.forEach((l, i) => l.classList.toggle("on", i < lit));
+    };
+    const finish = () => { show(m.value); suffix.textContent = ordinal(m.value); pod.classList.add("is-shifted"); };
+    if (reduced) return finish();
+    let g = 0;
+    show(0);
+    const step = () => {
+      g += 1;
+      if (g >= m.value) return finish();
+      show(g);
+      setTimeout(step, 260);
+    };
+    setTimeout(step, 420);
+  };
+
   const podSvg = (m) => {
+    if (m.type === "gear") return gearSvg(m);
     const span = m.max - m.min;
     let ticks = "", nums = "";
     const minor = 48;
@@ -185,6 +237,7 @@
       pod.addEventListener("mouseleave", () => pod.classList.remove("pod--track"));
     }
     pod._run = () => {
+      if (m.type === "gear") return runGear(pod, m);
       const needle = pod.querySelector(".pod__needle"), sweep = pod.querySelector(".pod__sweep");
       const out = pod.querySelector(".pod__value");
       const frac = Math.min(Math.max((m.value - m.min) / (m.max - m.min), 0), 1);
@@ -206,7 +259,8 @@
       needle.setAttribute("transform", `rotate(${A0})`);
       requestAnimationFrame(step);
     };
-    pod.querySelector(".pod__needle").setAttribute("transform", `rotate(${A0})`);
+    const needle0 = pod.querySelector(".pod__needle");
+    if (needle0) needle0.setAttribute("transform", `rotate(${A0})`);
     clusterHost.appendChild(pod);
   });
 
@@ -491,6 +545,119 @@
     if (e.target.closest("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^[0-6]$/.test(e.key)) sections[+e.key]?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
   });
+  /* ---------- Live background: red light streaks, glows, dot grid and a telemetry trace ---------- */
+  const live = (() => {
+    const cv = el("canvas", { class: "livebg", "aria-hidden": "true" });
+    document.body.prepend(cv);
+    const ctx = cv.getContext("2d");
+    const rand = (a, b) => a + Math.random() * (b - a);
+    let W = 0, H = 0, life = 0, lifeTarget = 0, boost = 0, lastY = scrollY, lastT = 0, running = false, phase = 0;
+    const spawn = (anywhere) => ({
+      x: anywhere ? rand(-0.1, 1) : rand(1, 1.25), y: rand(0, 1), len: rand(0.04, 0.2), spd: rand(0.0007, 0.003),
+      w: rand(0.6, 2.2), a: rand(0.12, 0.5), depth: rand(0.12, 0.7), white: Math.random() < 0.12
+    });
+    const streaks = Array.from({ length: 70 }, () => spawn(true));
+    const glows = Array.from({ length: 5 }, () => ({ x: rand(0, 1), y: rand(0, 1.6), r: rand(0.18, 0.36), depth: rand(0.05, 0.22), vx: rand(-0.00004, 0.00004) }));
+    const resize = () => {
+      const dpr = Math.min(devicePixelRatio || 1, 1.5);
+      W = innerWidth; H = innerHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const wrap = (v, m) => ((v % m) + m) % m;
+
+    const draw = (dt) => {
+      ctx.clearRect(0, 0, W, H);
+      if (life < 0.005) return;
+      ctx.globalAlpha = life;
+
+      // Dot grid, drifting with scroll
+      const gap = 34, oy = wrap(-scrollY * 0.15, gap);
+      ctx.fillStyle = "rgba(255,255,255,.035)";
+      for (let y = oy - gap; y < H; y += gap) for (let x = 12; x < W; x += gap) ctx.fillRect(x, y, 1.3, 1.3);
+
+      // Slow red glows (parallax)
+      for (const g of glows) {
+        g.x = wrap(g.x + g.vx * dt, 1.2);
+        const span = H * 1.6, gy = wrap(g.y * H - scrollY * g.depth, span) - H * 0.3, gx = g.x * W, r = g.r * Math.max(W, H);
+        const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+        grad.addColorStop(0, `rgba(225,6,0,${0.09 + boost * 0.02})`); grad.addColorStop(1, "rgba(225,6,0,0)");
+        ctx.fillStyle = grad; ctx.fillRect(gx - r, gy - r, r * 2, r * 2);
+      }
+
+      // Light streaks: race left, accelerate and stretch when you scroll
+      ctx.globalCompositeOperation = "lighter";
+      const pace = (0.25 + 0.75 * life) * (1 + boost * 3);
+      for (let i = 0; i < streaks.length; i++) {
+        const s = streaks[i];
+        s.x -= s.spd * pace * dt;
+        const len = s.len * W * (1 + boost * 1.6);
+        if (s.x * W + len < -20) { streaks[i] = spawn(false); continue; }
+        const x0 = s.x * W, y = wrap(s.y * H - scrollY * s.depth, H);
+        const grad = ctx.createLinearGradient(x0, y, x0 + len, y);
+        grad.addColorStop(0, s.white ? `rgba(255,255,255,${s.a * 0.8})` : `rgba(255,48,32,${s.a})`);
+        grad.addColorStop(1, "rgba(225,6,0,0)");
+        ctx.strokeStyle = grad; ctx.lineWidth = s.w;
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + len, y); ctx.stroke();
+      }
+      ctx.globalCompositeOperation = "source-over";
+
+      // Telemetry trace along the bottom, scrolling like a live data plot
+      phase += 0.0025 * dt * (1 + boost * 2);
+      const base = H * 0.9, off = scrollY * 0.004;
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 6) {
+        const u = x / W * 9 + phase + off;
+        const yv = base + Math.sin(u) * 10 + Math.sin(u * 2.7 + 1.3) * 6 + Math.sin(u * 7.1) * 2.5;
+        x ? ctx.lineTo(x, yv) : ctx.moveTo(x, yv);
+      }
+      ctx.strokeStyle = "rgba(225,6,0,.28)"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.globalAlpha = 1;
+    };
+
+    const frame = (t) => {
+      const dt = lastT ? Math.min((t - lastT) / 16.7, 3) : 1;
+      lastT = t;
+      const dy = scrollY - lastY; lastY = scrollY;
+      boost += (Math.min(Math.abs(dy) / 30, 4) - boost) * 0.08;
+      life += (lifeTarget - life) * 0.025 * dt;
+      draw(dt);
+      if (running) requestAnimationFrame(frame);
+    };
+    addEventListener("resize", () => { resize(); if (reduced) draw(1); });
+    if (reduced) addEventListener("scroll", () => draw(1), { passive: true });
+    document.addEventListener("visibilitychange", () => {
+      if (reduced || lifeTarget === 0) return;
+      running = !document.hidden;
+      if (running) { lastT = 0; requestAnimationFrame(frame); }
+    });
+    resize();
+
+    return {
+      on(instant) {
+        lifeTarget = 1;
+        if (instant || reduced) life = 1;
+        document.body.classList.add("is-live");
+        if (reduced) return draw(1);
+        if (!running) { running = true; requestAnimationFrame(frame); }
+      }
+    };
+  })();
+
+  // The moment the engine catches: shockwave from the key, red flash, scan line, dash flicker
+  const igniteFx = (origin) => {
+    const r = origin.getBoundingClientRect();
+    const x = `${r.left + r.width / 2}px`, y = `${r.top + r.height * 0.4}px`;
+    ["ignite-flash", "ignite-ring", "ignite-ring ignite-ring--late", "ignite-scan"].forEach((c) => {
+      const d = el("div", { class: c, "aria-hidden": "true" });
+      d.style.setProperty("--x", x); d.style.setProperty("--y", y);
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), 2000);
+    });
+    document.body.classList.add("is-igniting");
+    setTimeout(() => document.body.classList.remove("is-igniting"), 1700);
+  };
+
   /* ---------- Ignition key: seen head-on, twisted about its own axis ---------- */
   const ign = $("#ignition");
   const keyHost = $("#ignitionKey");
@@ -591,9 +758,11 @@
     engineOn = true;
     try { sessionStorage.setItem("engineOn", "1"); } catch (e) {}
     if (navigator.vibrate) navigator.vibrate(35);
+    if (!reduced) igniteFx(keyHost);
     setLocked(false);
+    live.on(reduced);
     sizeWheelSection(); update(); setGear();
-    setTimeout(() => $("#telemetry").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }), reduced ? 0 : 750);
+    setTimeout(() => $("#telemetry").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }), reduced ? 0 : 1400);
   };
   const turnKey = () => { if (!engineOn) turnTo(KEY_ON, startEngine); };
   const nudge = () => {
@@ -639,4 +808,5 @@
   });
 
   setLocked(!engineOn);
+  if (engineOn) live.on(true);
 })();
