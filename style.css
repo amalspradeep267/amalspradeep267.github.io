@@ -237,11 +237,38 @@ body.is-locked .gears a:not([data-gear="N"]) { opacity: .3; }
 .wheelsec__stage { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; gap: 2vw; min-height: 0; }
 .wheel { position: relative; width: min(64svh, 40vw); aspect-ratio: 1; justify-self: center; }
 .wheel svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 30px 40px rgba(0,0,0,.6)); }
-.wheel .stripe { fill: none; stroke: #e5232b; stroke-width: 18; }
-.wheel .wall-text { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 46px; letter-spacing: 3px; fill: #e5232b; }
+.wheel .stripe { fill: none; stroke: #d21f27; stroke-width: 16; }
+.wheel .stripe-edge { fill: none; stroke: #5e0a0e; stroke-width: 1.5; }
+.wheel .wall-text { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 46px; letter-spacing: 3px; fill: #d21f27; }
 .wheel .wall-text--sm { font-size: 52px; letter-spacing: 6px; }
-.wheel .vent { fill: #020203; stroke: #24262b; stroke-width: 2; }
-.wheel .gloss { fill: #fff; opacity: .035; pointer-events: none; }
+.wheel .wall-mould { font-family: var(--mono); font-weight: 600; font-size: 19px; letter-spacing: 5px; fill: #1b1b1e; }
+.wheel .marbles ellipse { fill: #242427; }
+.wheel .spec { fill: none; stroke: #fff; stroke-opacity: .16; stroke-width: 8; pointer-events: none; }
+.wheel .car { pointer-events: none; }
+.car__body { fill: url(#carGrad); stroke: rgba(255,255,255,.14); stroke-width: 3; stroke-linejoin: round; }
+.car__dark { fill: #040405; }
+.car__fin { fill: #15171b; stroke: rgba(255,255,255,.1); stroke-width: 2; }
+.car__plate { fill: #1b1d22; stroke: rgba(255,255,255,.14); stroke-width: 2; }
+.car__tyre { fill: #0b0b0c; }
+.car__rim { fill: #131417; }
+.car__stripe { fill: none; stroke: #d21f27; stroke-width: 16; opacity: .7; }
+.car__helmet { fill: #9da1a9; opacity: .55; }
+.car__halo { fill: none; stroke: #2b2e34; stroke-width: 34; stroke-linecap: round; }
+.car__arm { fill: none; stroke: #2b2e34; stroke-width: 14; stroke-linecap: round; }
+.car__shadow { fill: #000; opacity: .7; filter: blur(14px); }
+.car__spokes { fill: none; stroke: #2a2c31; stroke-width: 40; stroke-linecap: round; }
+.car__hub { fill: #c3d531; opacity: .8; }
+.car__livery { fill: none; stroke: #d21f27; stroke-width: 9; stroke-linejoin: round; opacity: .85; }
+.carbg { position: absolute; left: 0; right: 0; bottom: 2svh; height: 34svh; opacity: .5; pointer-events: none; z-index: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent); mask-image: linear-gradient(90deg, #000 55%, transparent); }
+.carbg svg { width: 100%; height: 100%; display: block; }
+.wheelsec__sticky > :not(.carbg) { position: relative; z-index: 1; }
+
+/* Image lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 90; display: none; place-items: center; align-content: center; gap: 14px; padding: 4vw; background: rgba(5,5,6,.92); cursor: zoom-out; }
+.lightbox.is-open { display: grid; }
+.lightbox img { max-width: 100%; max-height: 82vh; object-fit: contain; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.lightbox span { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
 .wheel .badge circle { fill: rgba(16,17,20,.92); stroke: #3a3d44; stroke-width: 3; transition: fill .3s, stroke .3s; }
 .wheel .badge text { font-family: var(--mono); font-weight: 600; font-size: 24px; fill: var(--muted); text-anchor: middle; dominant-baseline: central; transition: fill .3s; }
 .wheel .badge { cursor: pointer; }
@@ -251,7 +278,8 @@ body.is-locked .gears a:not([data-gear="N"]) { opacity: .3; }
 .wheel .pointer { fill: var(--red); filter: drop-shadow(0 0 8px var(--red)); }
 
 .panel {
-  position: relative; background: linear-gradient(160deg, var(--panel-2), var(--panel));
+  position: relative; background: linear-gradient(160deg, rgba(26,29,35,.68), rgba(18,20,24,.78));
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   border: 1px solid var(--line); border-left: 4px solid var(--red);
   padding: 20px 24px; max-height: 100%; min-height: 0;
   display: flex; flex-direction: column;
@@ -267,15 +295,18 @@ body.is-locked .gears a:not([data-gear="N"]) { opacity: .3; }
 .panel__title:hover { color: #ff4a42; }
 .panel__kind { margin: 0; color: var(--muted); font-weight: 600; }
 .panel__media {
-  position: relative; flex: 0 1 auto; height: clamp(110px, 24svh, 280px); min-height: 0; margin: 12px 0;
-  background: #0c0d10 center / cover no-repeat; border: 1px solid var(--line);
+  position: relative; display: block; width: 100%; padding: 0; overflow: hidden; cursor: zoom-in;
+  flex: 0 1 auto; height: clamp(120px, 27svh, 300px); min-height: 0; margin: 12px 0;
+  background: #0c0d10; border: 1px solid var(--line);
 }
+.panel__media::before { content: ""; position: absolute; inset: -24px; background: var(--img) center / cover no-repeat; filter: blur(18px) brightness(.45); }
+.panel__media img { position: relative; width: 100%; height: 100%; object-fit: contain; }
 .panel__open {
   position: absolute; right: 10px; bottom: 10px; padding: 6px 10px;
   font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
   background: rgba(10,11,13,.85); border: 1px solid var(--line); opacity: 0; transition: opacity .25s;
 }
-.panel:hover .panel__open { opacity: 1; }
+.panel__media:hover .panel__open, .panel__media:focus-visible .panel__open { opacity: 1; }
 .panel__desc { margin: 0; color: #cfd2d6; }
 .d-short { display: none; }
 .panel__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
@@ -400,6 +431,7 @@ body.is-locked .gears a:not([data-gear="N"]) { opacity: .3; }
   .panel { cursor: default; }
   .panel { padding: 16px 18px; }
   .panel__media { display: none; }
+  .carbg { height: 16svh; bottom: 70px; }
   .panel__desc { font-size: 15px; }
   .d-long { display: none; }
   .d-short { display: inline; }

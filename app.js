@@ -219,51 +219,165 @@
   const panel = $("#panel");
   const stint = $("#stint");
 
-  // Slick tyre with a split compound stripe and sidewall lettering, black wheel cover and centre-lock nut
-  const vents = Array.from({ length: 5 }, (_, i) =>
-    `<path class="vent" transform="rotate(${i * 72})" d="M -20 -148 L -30 -236 Q 0 -250 30 -236 L 20 -148 Q 0 -140 -20 -148 Z"/>`).join("");
+  // Front wheel of a faded F1 car. Units: wheel radius 472 ≈ 360 mm, so 1 mm ≈ 1.31 units.
+  // The car faces left; the front axle is at (0, 0) and the ground at y = 472.
+  const MM = 1.31;
+  const X = (mm) => (mm * MM).toFixed(1);                 // mm behind the front axle
+  const Y = (h) => (472 - h * MM).toFixed(1);             // h = mm above the ground
+  const P = (pts) => pts.map(([x, h], i) => `${i ? "L" : "M"} ${X(x)} ${Y(h)}`).join(" ") + " Z";
+  const carSvg = `
+    <g class="car">
+      <ellipse class="car__shadow" cx="${X(1900)}" cy="${Y(0)}" rx="${X(3400)}" ry="34"/>
+      <!-- floor and plank -->
+      <path class="car__body" d="${P([[1400, 70], [4300, 70], [4400, 40], [1450, 30], [1300, 50]])}"/>
+      <!-- sidepod, engine cover, airbox -->
+      <path class="car__body" d="${P([[1550, 300], [1650, 640], [2150, 700], [2250, 860], [2350, 1010], [2560, 1000],
+                                       [3000, 860], [3600, 720], [4200, 560], [4450, 470], [4450, 300], [4100, 260],
+                                       [3500, 280], [3300, 380], [2900, 300], [1900, 280]])}"/>
+      <path class="car__dark" d="${P([[1600, 340], [1680, 620], [1760, 600], [1700, 360]])}"/>
+      <!-- shark fin -->
+      <path class="car__fin" d="${P([[2700, 980], [4300, 820], [4300, 640], [2900, 860]])}"/>
+      <!-- rear wing, beam wing and endplate -->
+      <path class="car__body" d="${P([[4250, 960], [4950, 1000], [4960, 900], [4300, 880]])}"/>
+      <path class="car__body" d="${P([[4350, 860], [4900, 890], [4910, 830], [4360, 820]])}"/>
+      <path class="car__body" d="${P([[4400, 520], [4880, 540], [4880, 500], [4400, 490]])}"/>
+      <path class="car__plate" d="${P([[4880, 1010], [4980, 1010], [4980, 330], [4880, 360]])}"/>
+      <!-- rear wheel -->
+      <g class="cw" data-x="${X(3600)}" transform="translate(${X(3600)} 0)"><circle r="472" class="car__tyre"/><circle r="392" class="car__stripe"/><circle r="300" class="car__rim"/><path class="car__spokes" d="M 0 -280 V -120 M 0 280 V 120 M -280 0 H -120 M 280 0 H 120"/><circle r="60" class="car__hub"/></g>
+      <!-- monocoque and nose -->
+      <path class="car__body" d="${P([[-1050, 250], [-700, 330], [-300, 420], [100, 500], [600, 580], [1200, 660],
+                                       [1450, 720], [1600, 720], [1700, 660], [1700, 300], [1100, 260], [400, 240],
+                                       [-200, 210], [-800, 180], [-1050, 190]])}"/>
+      <!-- livery pinstripe -->
+      <path class="car__livery" d="M ${X(-1000)} ${Y(225)} L ${X(0)} ${Y(440)} L ${X(1200)} ${Y(600)} L ${X(1650)} ${Y(610)} L ${X(3000)} ${Y(560)} L ${X(4300)} ${Y(430)}"/>
+      <!-- halo and driver -->
+      <circle class="car__helmet" cx="${X(1900)}" cy="${Y(860)}" r="${X(125)}"/>
+      <path class="car__halo" d="M ${X(1450)} ${Y(720)} Q ${X(1520)} ${Y(960)} ${X(1800)} ${Y(965)} L ${X(2180)} ${Y(950)} Q ${X(2260)} ${Y(900)} ${X(2240)} ${Y(760)}"/>
+      <path class="car__arm" d="M ${X(1350)} ${Y(760)} L ${X(1300)} ${Y(840)}"/>
+      <rect class="car__body" x="${X(1220)}" y="${Y(880)}" width="${X(160)}" height="${X(55)}" rx="10"/>
+      <!-- front suspension -->
+      <path class="car__arm" d="M 0 -40 L ${X(650)} ${Y(560)} M 0 40 L ${X(700)} ${Y(330)} M 0 0 L ${X(800)} ${Y(470)}"/>
+      <!-- front wheel -->
+      <g class="cw" data-x="0" transform="translate(0 0)"><circle r="472" class="car__tyre"/><circle r="392" class="car__stripe"/><circle r="300" class="car__rim"/><path class="car__spokes" d="M 0 -280 V -120 M 0 280 V 120 M -280 0 H -120 M 280 0 H 120"/><circle r="60" class="car__hub"/></g>
+      <!-- front wing: endplate and three elements -->
+      <path class="car__body" d="${P([[-1080, 80], [-560, 110], [-560, 140], [-1080, 120]])}"/>
+      <path class="car__body" d="${P([[-1020, 150], [-640, 190], [-650, 215], [-1020, 175]])}"/>
+      <path class="car__body" d="${P([[-960, 215], [-700, 265], [-715, 285], [-965, 235]])}"/>
+      <path class="car__plate" d="${P([[-1110, 40], [-1040, 40], [-1010, 300], [-1090, 290]])}"/>
+    </g>`;
+
+  // Seeded scatter for rubber marbles on the shoulder
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const marbles = Array.from({ length: 46 }, () => {
+    const a = rnd() * 360, r = 452 + rnd() * 16, [x, y] = pt(a, r);
+    return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(2 + rnd() * 5).toFixed(1)}" ry="${(1.5 + rnd() * 3).toFixed(1)}" transform="rotate(${(a + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+  }).join("");
+  const fasteners = Array.from({ length: 5 }, (_, i) => { const [x, y] = pt(i * 72 + 18, 248); return `<circle cx="${x}" cy="${y}" r="8"/>`; }).join("");
   const badges = projects.map((pr, i) => `
     <g class="badge" data-i="${i}" transform="rotate(${-i * STEP}) translate(342 0)">
       <g class="badge__up"><circle r="30"/><text>${String(i + 1).padStart(2, "0")}</text></g>
     </g>`).join("");
-  const topText = (p.name).toUpperCase();
+  const topText = p.name.toUpperCase();
   const bottomText = p.role.split(" ")[0].toUpperCase();
+  const [vx, vy] = pt(-28, 304);
   wheelHost.innerHTML = `
     <svg viewBox="-520 -520 1040 1040" aria-hidden="true">
       <defs>
-        <radialGradient id="tyreShade" r=".5"><stop offset=".6" stop-color="#060607"/><stop offset=".86" stop-color="#151517"/><stop offset=".96" stop-color="#0d0d0e"/><stop offset="1" stop-color="#050505"/></radialGradient>
-        <radialGradient id="rimFace" cx=".45" cy=".4" r=".6"><stop offset="0" stop-color="#1c1d21"/><stop offset=".8" stop-color="#0a0a0c"/><stop offset="1" stop-color="#050506"/></radialGradient>
-        <radialGradient id="hubGrad" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#2b2d32"/><stop offset="1" stop-color="#0b0b0d"/></radialGradient>
-        <radialGradient id="nutTip" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#f3ff8a"/><stop offset=".6" stop-color="#c3d531"/><stop offset="1" stop-color="#6f7a12"/></radialGradient>
-        <filter id="rubber" x="-10%" y="-10%" width="120%" height="120%">
-          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7"/>
-          <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/>
+        <radialGradient id="tyreShade" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="472">
+          <stop offset=".63" stop-color="#030303"/><stop offset=".67" stop-color="#0d0d0e"/><stop offset=".76" stop-color="#19191b"/>
+          <stop offset=".84" stop-color="#1e1e20"/><stop offset=".91" stop-color="#141415"/><stop offset=".97" stop-color="#0a0a0b"/><stop offset="1" stop-color="#030303"/>
+        </radialGradient>
+        <linearGradient id="lightDir" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity=".13"/><stop offset=".42" stop-color="#fff" stop-opacity="0"/>
+          <stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/>
+        </linearGradient>
+        <linearGradient id="lipGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#9ea2aa"/><stop offset=".3" stop-color="#3a3d43"/><stop offset=".55" stop-color="#6f737b"/><stop offset="1" stop-color="#1c1d21"/>
+        </linearGradient>
+        <radialGradient id="coverSheen" cx=".32" cy=".28" r=".75">
+          <stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".5" stop-color="#fff" stop-opacity=".02"/><stop offset="1" stop-color="#000" stop-opacity=".35"/>
+        </radialGradient>
+        <radialGradient id="nutGrad" cx=".35" cy=".3" r=".8">
+          <stop offset="0" stop-color="#eef77a"/><stop offset=".45" stop-color="#b9c933"/><stop offset="1" stop-color="#4d5509"/>
+        </radialGradient>
+        <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d7dade"/><stop offset=".5" stop-color="#6a6e76"/><stop offset="1" stop-color="#2a2c31"/></linearGradient>
+        <linearGradient id="carGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2d33"/><stop offset="1" stop-color="#0e0f12"/></linearGradient>
+        <linearGradient id="carFade" gradientUnits="userSpaceOnUse" x1="-1500" y1="0" x2="6600" y2="0">
+          <stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".22" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity=".12"/>
+        </linearGradient>
+        <mask id="carMask" maskUnits="userSpaceOnUse" x="-2000" y="-1200" width="9000" height="2000"><rect x="-2000" y="-1200" width="9000" height="2000" fill="url(#carFade)"/></mask>
+        <pattern id="carbon" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="14" height="14" fill="#0e0f11"/><rect width="7" height="7" fill="#17181b"/><rect x="7" y="7" width="7" height="7" fill="#17181b"/>
+          <path d="M0 3.5 H7 M7 10.5 H14" stroke="#1d1f23" stroke-width="1"/>
+        </pattern>
+        <filter id="rubber" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="7"/>
+          <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .09 0"/>
           <feComposite in2="SourceGraphic" operator="in"/>
         </filter>
+        <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+        <filter id="emboss" x="-5%" y="-5%" width="110%" height="110%">
+          <feOffset dx="-1.2" dy="-1.2" in="SourceAlpha" result="hi"/><feFlood flood-color="#fff" flood-opacity=".09"/><feComposite in2="hi" operator="in" result="hiC"/>
+          <feOffset dx="1.5" dy="1.5" in="SourceAlpha" result="lo"/><feFlood flood-color="#000" flood-opacity=".8"/><feComposite in2="lo" operator="in" result="loC"/>
+          <feMerge><feMergeNode in="loC"/><feMergeNode in="hiC"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
         <path id="topArc" d="${arcD(380, 202, 338)}"/>
-        <path id="botArc" d="M ${pt(158, 428).join(" ")} A 428 428 0 0 0 ${pt(22, 428).join(" ")}"/>
+        <path id="botArc" d="M ${pt(158, 426).join(" ")} A 426 426 0 0 0 ${pt(22, 426).join(" ")}"/>
+        <path id="sizeArc" d="${arcD(328, -40, 40)}"/>
+        <path id="sizeArc2" d="${arcD(328, 140, 220)}"/>
+        <clipPath id="tyreClip"><circle r="472"/></clipPath>
       </defs>
+
+
       <g id="wheelRot">
+        <!-- tyre -->
         <circle r="472" fill="url(#tyreShade)"/>
-        <circle r="472" fill="#fff" filter="url(#rubber)"/>
-        <circle r="468" fill="none" stroke="#1e1f22" stroke-width="2"/>
         <path class="stripe" d="${arcD(392, -50, 50)}"/>
         <path class="stripe" d="${arcD(392, 130, 230)}"/>
-        <text class="wall-text"><textPath href="#topArc" startOffset="50%" text-anchor="middle">${esc(topText)}</textPath></text>
-        <text class="wall-text wall-text--sm"><textPath href="#botArc" startOffset="50%" text-anchor="middle">${esc(bottomText)}</textPath></text>
-        <circle r="306" fill="#020203"/>
-        <circle r="298" fill="url(#rimFace)" stroke="#2c2e33" stroke-width="3"/>
-        <circle r="262" fill="none" stroke="#17181b" stroke-width="10"/>
-        <circle r="196" fill="none" stroke="#141518" stroke-width="2"/>
-        ${vents}
-        <circle r="72" fill="url(#hubGrad)" stroke="#2e3036" stroke-width="4"/>
-        <polygon points="0,-36 31,-18 31,18 0,36 -31,18 -31,-18" fill="#17181b" stroke="#3a3c42" stroke-width="2"/>
-        <circle r="15" fill="url(#nutTip)"/>
+        <path class="stripe-edge" d="${arcD(383, -50, 50)} ${arcD(401, -50, 50)} ${arcD(383, 130, 230)} ${arcD(401, 130, 230)}"/>
+        <g filter="url(#emboss)">
+          <text class="wall-text"><textPath href="#topArc" startOffset="50%" text-anchor="middle">${esc(topText)}</textPath></text>
+          <text class="wall-text wall-text--sm"><textPath href="#botArc" startOffset="50%" text-anchor="middle">${esc(bottomText)}</textPath></text>
+          <text class="wall-mould"><textPath href="#sizeArc" startOffset="50%" text-anchor="middle">305/720 R18 · FRONT</textPath></text>
+          <text class="wall-mould"><textPath href="#sizeArc2" startOffset="50%" text-anchor="middle">ROTATION ▸ · MS ROBOTICS</textPath></text>
+        </g>
+        <g class="marbles">${marbles}</g>
+        <circle r="472" fill="#fff" filter="url(#rubber)"/>
+        <!-- bead seat and machined rim lip -->
+        <circle r="306" fill="#020202"/>
+        <circle r="300" fill="#08090a"/>
+        <circle r="293" fill="none" stroke="#2c2e33" stroke-width="12"/>
+        <circle r="287" fill="none" stroke="#55585f" stroke-width="1.5"/>
+        <rect x="${vx - 5}" y="${vy - 9}" width="10" height="18" rx="3" fill="url(#steel)" transform="rotate(62 ${vx} ${vy})"/>
+        <!-- carbon wheel cover -->
+        <circle r="282" fill="url(#carbon)"/>
+        <circle r="282" fill="none" stroke="#000" stroke-width="5" opacity=".7"/>
+        <circle r="232" fill="none" stroke="#08090a" stroke-width="3"/>
+        <circle r="234" fill="none" stroke="#2a2c31" stroke-width="1"/>
+        <g fill="url(#steel)">${fasteners}</g>
+        <!-- hub and centre-lock nut -->
+        <circle r="98" fill="#030304"/>
+        <circle r="86" fill="#141518" stroke="#2c2e33" stroke-width="3"/>
+        <polygon points="0,-56 48.5,-28 48.5,28 0,56 -48.5,28 -48.5,-28" fill="url(#nutGrad)" stroke="#2f3507" stroke-width="2"/>
+        <circle r="30" fill="#141516" stroke="#5c6113" stroke-width="2"/>
+        <circle r="13" fill="url(#steel)"/>
+        <rect x="-5" y="-78" width="10" height="26" rx="3" fill="url(#steel)"/>
         ${badges}
       </g>
-      <ellipse class="gloss" cx="-150" cy="-250" rx="230" ry="90" transform="rotate(-35 -150 -250)"/>
+
+      <!-- fixed studio lighting over the whole wheel -->
+      <circle r="472" fill="url(#lightDir)" pointer-events="none"/>
+      <circle r="282" fill="url(#coverSheen)" pointer-events="none"/>
+      <path d="${arcD(462, 196, 252)}" class="spec" filter="url(#soft)"/>
+      <circle r="471" fill="none" stroke="#000" stroke-width="3" pointer-events="none"/>
       <polygon class="pointer" points="492,0 516,-16 516,16"/>
     </svg>`;
+  // Whole car, faded, along the bottom of the section; its wheels turn with the big one
+  const carHost = el("div", { class: "carbg", "aria-hidden": "true" },
+    `<svg viewBox="-1560 -930 8200 1440" preserveAspectRatio="xMidYMax meet">${carSvg}</svg>`);
+  $(".wheelsec__sticky").prepend(carHost);
+  const carWheels = [...carHost.querySelectorAll(".cw")];
   const rot = $("#wheelRot", wheelHost);
   const badgeEls = [...wheelHost.querySelectorAll(".badge")];
   stint.innerHTML = `<span id="stintText">STINT 1/${N}</span><span class="stint__bars">${"<i></i>".repeat(N)}</span>`;
@@ -279,7 +393,7 @@
       <div class="panel__top"><span class="panel__num">${String(i + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}</span><span>${esc(pr.date)}</span></div>
       <h3>${title}</h3>
       <p class="panel__kind">${esc(pr.kind)}</p>
-      ${pr.image ? `<div class="panel__media" role="img" aria-label="${esc(pr.name)}" style="background-image:url('${esc(pr.image)}')"><span class="panel__open">View project ↗</span></div>` : ""}
+      ${pr.image ? `<button class="panel__media" type="button" style="--img:url('${esc(pr.image)}')" aria-label="Enlarge image: ${esc(pr.name)}"><img src="${esc(pr.image)}" alt="${esc(pr.name)}"/><span class="panel__open">⤢ Enlarge</span></button>` : ""}
       <p class="panel__desc"><span class="d-long">${esc(pr.description)}</span><span class="d-short">${esc(pr.summary || pr.description)}</span></p>
       <div class="tags">${pr.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
       <div class="panel__row">
@@ -293,7 +407,19 @@
     $("#stintText").textContent = `STINT ${i + 1}/${N}`;
   };
   // Clicking anywhere on the card opens the project (links inside it still work on their own)
+  const lightbox = el("div", { class: "lightbox", role: "dialog", "aria-modal": "true", "aria-label": "Project image" }, `<img alt=""/><span>Click or press Esc to close</span>`);
+  document.body.appendChild(lightbox);
+  const closeLightbox = () => lightbox.classList.remove("is-open");
+  lightbox.addEventListener("click", closeLightbox);
+  addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
   panel.addEventListener("click", (e) => {
+    const media = e.target.closest(".panel__media");
+    if (media) {
+      const img = media.querySelector("img");
+      lightbox.querySelector("img").src = img.src; lightbox.querySelector("img").alt = img.alt;
+      lightbox.classList.add("is-open");
+      return;
+    }
     if (e.target.closest("a") || !panel.dataset.href) return;
     window.open(panel.dataset.href, "_blank", "noopener");
   });
@@ -309,6 +435,7 @@
   };
   const setAngle = (deg) => {
     rot.setAttribute("transform", `rotate(${deg})`);
+    carWheels.forEach((w) => w.setAttribute("transform", `translate(${w.dataset.x} 0) rotate(${deg})`));
     // keep badge numbers upright
     badgeEls.forEach((b, i) => b.querySelector(".badge__up").setAttribute("transform", `rotate(${i * STEP - deg})`));
   };
