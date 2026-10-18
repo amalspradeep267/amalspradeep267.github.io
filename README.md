@@ -26,7 +26,7 @@ It's served by GitHub Pages from the `main` branch of this repo.
 
 ## Portrait
 
-A faded portrait sits inside the race track on the home page (desktop only). To remove it, set `portrait: ""` in `data.js`.
+A portrait fills the inside of the race track on the home page, clipped to the circuit's shape with a red backdrop (desktop only). To remove it, set `portrait: ""` in `data.js`.
 
 To go back to the version without the portrait completely:
 

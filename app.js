@@ -111,17 +111,33 @@
   trail.setAttribute("d", track.getAttribute("d"));
   trail.setAttribute("class", "trail");
   trackSvg.insertBefore(trail, car);
-  // Optional portrait, feathered into the middle of the circuit (behind the track and the car)
+  // Optional portrait filling the inside of the circuit: clipped to the track's own shape, with a
+  // dark red backdrop and speed streaks where the photo runs out (the track is drawn over the edge)
   if (p.portrait) {
+    const d = track.getAttribute("d");
+    const streaks = [[60, 330, 520, 120], [40, 420, 380, 260], [600, 470, 960, 300], [560, 560, 980, 380], [120, 250, 420, 110]]
+      .map(([x1, y1, x2, y2], i) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="url(#pStreak)" stroke-width="${[3, 2, 3, 2, 1.5][i]}"/>`).join("");
     trackSvg.insertAdjacentHTML("afterbegin", `
       <defs>
-        <radialGradient id="portraitFade" cx=".5" cy=".46" r=".5">
-          <stop offset=".55" stop-color="#fff"/><stop offset=".8" stop-color="#fff" stop-opacity=".45"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        <clipPath id="trackInside"><path d="${d}"/></clipPath>
+        <radialGradient id="pBack" gradientUnits="userSpaceOnUse" cx="560" cy="300" r="480">
+          <stop offset="0" stop-color="#5a0805"/><stop offset=".55" stop-color="#2a0403"/><stop offset="1" stop-color="#0c0606"/>
         </radialGradient>
-        <mask id="portraitMask" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#portraitFade)"/></mask>
+        <linearGradient id="pStreak" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#ff2a1a" stop-opacity="0"/><stop offset=".5" stop-color="#ff2a1a" stop-opacity=".55"/><stop offset="1" stop-color="#ff2a1a" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="pSides" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".2" stop-color="#fff"/><stop offset=".82" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </linearGradient>
+        <mask id="pSideMask" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#pSides)"/></mask>
       </defs>
-      <image class="hero__portrait" href="${esc(p.portrait)}" x="345" y="150" width="320" height="320" mask="url(#portraitMask)" preserveAspectRatio="xMidYMid slice"><title>${esc(p.name)}</title></image>`);
-  }  const L = track.getTotalLength();
+      <g class="hero__portrait" clip-path="url(#trackInside)">
+        <rect x="0" y="0" width="1000" height="600" fill="url(#pBack)"/>
+        ${streaks}
+        <image href="${esc(p.portrait)}" x="300" y="40" width="540" height="540" mask="url(#pSideMask)" preserveAspectRatio="xMidYMid slice"><title>${esc(p.name)}</title></image>
+      </g>`);
+  }
+  const L = track.getTotalLength();
   const trailLen = L * 0.08;
   trail.style.strokeDasharray = `${trailLen} ${L}`;
   const place = (d) => {
