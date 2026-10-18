@@ -24,15 +24,19 @@ window.SITE = {
     { label: "LinkedIn", url: "http://www.linkedin.com/in/amal-s-pradeep-b26838317" }
   ],
 
-  // Instrument cluster in the Telemetry section. The "main" pod sits in the centre;
-  // the rest alternate left and right. Add or remove entries freely (3 or 5 look best).
+  // Instrument cluster in the Telemetry section. The "main" pod sits in the centre; the rest
+  // alternate near-left, near-right, far-left, far-right. 3 or 5 entries look best.
   telemetry: [
     { value: 99.3, min: 90, max: 100, step: 2, decimals: 1, unit: "PCTL", main: true,
       label: "JEE Main percentile", detail: "Top 0.7% of ~1 million candidates in India" },
     { value: 60, min: 0, max: 100, step: 20, unit: "%",
       label: "Faster design iterations", detail: "Underwater ROV" },
     { type: "gear", value: 4, max: 8,
-      label: "Dell × NVIDIA GB10 Hackathon", detail: "4th place · Hyperion · team of 4" }
+      label: "Dell × NVIDIA GB10 Hackathon", detail: "4th place · Hyperion · team of 4" },
+    { value: 30, min: 0, max: 40, step: 10, unit: "+",
+      label: "Structural parts released", detail: "Underwater ROV" },
+    { value: 94, min: 50, max: 100, step: 10, unit: "%",
+      label: "Automotive Systems · NPTEL", detail: "Top 2% · Elite · IIT Madras, India" }
   ],
   // Projects on the wheel, in order
   projects: [
@@ -107,6 +111,28 @@ window.SITE = {
         { label: "Repo", url: "https://github.com/amalspradeep267/3r-arm-gravity-simulation" },
         { label: "Video", url: "https://youtu.be/a26fu7pMk3Y" }
       ]
+    },
+    {
+      name: "CT Scan Super-Resolution",
+      kind: "B.Tech thesis · NIT Trichy, India · Team of 2",
+      date: "2023 – 2024",
+      description: "Two CNNs for chest CT scans: SR-SLRnet, a residual network with sub-pixel upsampling that reconstructs high-resolution scans from low-resolution ones, and EC2Rnet, which classifies them as normal or one of three lung cancers. Tested across downsampling factors from ×2 to ×10 on 900 scans.",
+      summary: "Deep-learning super-resolution and lung-cancer classification for chest CT scans.",
+      tags: ["TensorFlow / Keras", "CNNs", "Medical imaging", "Python"],
+      metric: { value: "34.65 dB", label: "PSNR at ×2, ahead of SRCNN, FSRCNN and VDSR" },
+      image: "media/ct-superres.jpg",
+      links: []
+    },
+    {
+      name: "Hyperspectral Imaging Review",
+      kind: "Journal paper · First author",
+      date: "Nov 2024",
+      description: "A review of hyperspectral imaging for detecting and telling apart bodily fluids at crime scenes, such as blood, saliva and semen. It compares methods, instruments and findings across the literature, and covers why non-destructive spectral imaging beats traditional forensic tests. Published in Forensic Science International.",
+      summary: "First-author review in Forensic Science International on hyperspectral imaging for forensics.",
+      tags: ["Hyperspectral imaging", "Forensic science", "Literature review"],
+      metric: { value: "Vol. 364", label: "Forensic Science International (Elsevier)" },
+      image: "",
+      links: [{ label: "Paper", url: "https://doi.org/10.1016/j.forsciint.2024.112227" }]
     }
   ],
 
@@ -124,7 +150,7 @@ window.SITE = {
     },
     {
       role: "Trainee Engineer",
-      org: "Levvan Engineering & Automation · Chennai",
+      org: "Levvan Engineering & Automation · Chennai, India",
       date: "Aug 2024 – Feb 2025",
       points: [
         "Designed the full SolidWorks model of an industrial tire-cutting machine",
@@ -134,7 +160,7 @@ window.SITE = {
     },
     {
       role: "Industrial Manufacturing Intern",
-      org: "L&T Rubber Machinery · Kanchipuram",
+      org: "L&T Rubber Machinery · Kanchipuram, India",
       date: "Jul – Aug 2023",
       points: [
         "Studied tire building and curing machinery through CAD models and the shop floor",
@@ -153,15 +179,21 @@ window.SITE = {
   education: [
     {
       degree: "MS Robotics",
-      school: "Northeastern University · Boston",
+      school: "Northeastern University · Boston, MA",
       date: "Expected May 2027",
       detail: "Mechanics and Control, Control Systems, Sensors and Navigation, Mechatronics, Robot Design"
     },
     {
       degree: "B.Tech Electronics & Communication",
-      school: "National Institute of Technology, Trichy",
+      school: "National Institute of Technology · Tiruchirappalli, India",
       date: "2020 – 2024",
       detail: "Embedded Systems, Microcontrollers, Automotive Systems, Signal Processing, Machine Learning"
+    },
+    {
+      degree: "Fundamentals of Automotive Systems",
+      school: "NPTEL · IIT Madras, India",
+      date: "Jan – Apr 2024",
+      detail: "12-week certification: 94% with Elite distinction, top 2% of 770 certified candidates"
     }
   ],
 
