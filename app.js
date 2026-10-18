@@ -364,71 +364,86 @@
     if (e.target.closest("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^[0-6]$/.test(e.key)) sections[+e.key]?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
   });
-  /* ---------- Ignition key: turning it unlocks everything below Neutral ---------- */
+  /* ---------- Ignition key: seen head-on, twisted about its own axis ---------- */
   const ign = $("#ignition");
   const keyHost = $("#ignitionKey");
   const hint = $("#ignitionHint");
-  const KEY_ON = 78;                       // degrees to START
-  const HOLE = [208, 0];                   // lanyard loop, in key coordinates
+  const sub = $("#ignitionSub");
+  const KEY_ON = 90;                        // OFF (12 o'clock) to START (3 o'clock)
+  const HOLE = [0, 58];                     // lanyard loop near the bottom of the key head
+  const POS = ["OFF", "ACC", "ON", "START"];
   let engineOn = false;
   try { engineOn = sessionStorage.getItem("engineOn") === "1"; } catch (e) {}
 
-  const labels = [["OFF", -118], ["ACC", -82], ["ON", -46], ["START", -10]]
-    .map(([t, a]) => { const [x, y] = pt(a - 90 + 90, 104); return `<text class="ig__label" x="${x}" y="${y}" transform="rotate(${a + 90} ${x} ${y})">${t}</text>`; }).join("");
-  const knurl = Array.from({ length: 34 }, (_, i) => {
-    const a = 100 + i * 4.2; const [x1, y1] = pt(a, 78), [x2, y2] = pt(a, 90);
+  const posLabels = POS.map((t, i) => {
+    const a = -90 + i * 30, [x, y] = pt(a, 116), [x1, y1] = pt(a, 90), [x2, y2] = pt(a, 98);
+    return `<line class="ig__pip" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>
+            <text class="ig__label" data-i="${i}" x="${x}" y="${y}" transform="rotate(${a + 90} ${x} ${y})">${t}</text>`;
+  }).join("");
+  const knurl = Array.from({ length: 40 }, (_, i) => {
+    const a = 96 + i * 4.3, [x1, y1] = pt(a, 74), [x2, y2] = pt(a, 86);
     return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
   }).join("");
+  const keyHead = `
+    <path d="M -30 -84 Q -36 -84 -36 -76 L -38 72 Q -38 92 -18 92 L 18 92 Q 38 92 38 72 L 36 -76 Q 36 -84 30 -84 Z"/>`;
   keyHost.innerHTML = `
-    <svg viewBox="-130 -140 420 340" aria-hidden="true">
+    <svg viewBox="-132 -132 264 330" aria-hidden="true">
       <defs>
-        <linearGradient id="alu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f5f7"/><stop offset=".45" stop-color="#b9bcc3"/><stop offset=".55" stop-color="#9da1a9"/><stop offset="1" stop-color="#e3e5e9"/></linearGradient>
-        <linearGradient id="aluEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#6d7079"/></linearGradient>
+        <linearGradient id="alu" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8e9199"/><stop offset=".22" stop-color="#eef0f3"/><stop offset=".5" stop-color="#b7bac1"/><stop offset=".78" stop-color="#e6e8ec"/><stop offset="1" stop-color="#7d8088"/></linearGradient>
         <linearGradient id="chromeBit" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b6e76"/><stop offset=".35" stop-color="#f2f3f5"/><stop offset=".6" stop-color="#9a9da4"/><stop offset="1" stop-color="#4b4e55"/></linearGradient>
-        <pattern id="braid" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
-          <rect width="10" height="10" fill="#b3121a"/><rect width="10" height="4" fill="#7c0a10"/>
+        <radialGradient id="barrelFace" cx=".45" cy=".4" r=".65"><stop offset="0" stop-color="#1d1f23"/><stop offset="1" stop-color="#08090a"/></radialGradient>
+        <pattern id="braid" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+          <rect width="9" height="9" fill="#b3121a"/><rect width="9" height="3.5" fill="#7c0a10"/>
         </pattern>
+        <filter id="keyShadowBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
       </defs>
-      <!-- barrel -->
-      <circle r="118" class="ig__bezel"/>
-      <circle r="92" class="ig__ring"/>
+      <!-- barrel, seen head-on -->
+      ${posLabels}
+      <circle r="88" class="ig__bezel"/>
+      <circle r="86" class="ig__ring"/>
       <g class="ig__knurl">${knurl}</g>
-      ${labels}
-      <rect class="ig__notch" x="-6" y="-134" width="12" height="26" rx="4"/>
-      <circle r="62" class="ig__throat"/>
-      <!-- key -->
-      <g id="keyRot" class="ig__keygrp">
-        <rect x="-14" y="-16" width="70" height="32" rx="6" class="ig__stem"/>
-        <path class="ig__fob" d="M 40 -58 L 214 -50 Q 248 -48 248 -14 L 248 14 Q 248 48 214 50 L 40 58 Q 22 58 22 40 L 22 -40 Q 22 -58 40 -58 Z"/>
-        <path class="ig__fobhi" d="M 44 -50 L 210 -43 Q 238 -41 240 -18"/>
-        <rect x="190" y="-17" width="40" height="34" rx="12" class="ig__hole"/>
-        <rect x="88" y="-26" width="58" height="52" rx="10" class="ig__badge"/>
-        <text x="117" y="2" class="ig__mono">AP</text>
+      <circle r="62" fill="url(#barrelFace)" stroke="#26282d" stroke-width="3"/>
+      <circle r="46" class="ig__throat"/>
+      <!-- key shadow (fixed light, so it stays offset as the key turns) -->
+      <g transform="translate(9 13)" opacity=".55"><g id="keyShadow" filter="url(#keyShadowBlur)" fill="#000">${keyHead}</g></g>
+      <!-- key head -->
+      <g id="keyRot">
+        <g class="ig__fob">${keyHead}</g>
+        <path class="ig__fobhi" d="M -26 -78 L -28 64"/>
+        <rect x="-21" y="-50" width="42" height="46" rx="9" class="ig__badge"/>
+        <text x="0" y="-26" class="ig__mono">AP</text>
+        <rect x="-14" y="44" width="28" height="30" rx="11" class="ig__hole"/>
       </g>
-      <!-- lanyard (kept hanging under gravity in JS) -->
+      <!-- lanyard, kept hanging under gravity -->
       <g id="lanyard">
-        <path d="M -6 0 C -8 50 -4 100 -3 150 L 3 150 C 4 100 8 50 6 0 Z" fill="url(#braid)"/>
-        <rect x="-15" y="148" width="30" height="40" rx="5" fill="url(#chromeBit)"/>
-        <rect x="-15" y="174" width="30" height="3" fill="#c3121a"/>
+        <path d="M -5 0 C -6 36 -3 74 -2 104 L 2 104 C 3 74 6 36 5 0 Z" fill="url(#braid)"/>
+        <rect x="-12" y="102" width="24" height="32" rx="4" fill="url(#chromeBit)"/>
+        <rect x="-12" y="122" width="24" height="2.5" fill="#c3121a"/>
       </g>
     </svg>`;
   const keyRot = $("#keyRot", keyHost);
+  const keyShadow = $("#keyShadow", keyHost);
   const lanyard = $("#lanyard", keyHost);
   const keySvg = keyHost.querySelector("svg");
+  const labelEls = [...keyHost.querySelectorAll(".ig__label")];
 
   let angle = engineOn ? KEY_ON : 0, swing = 0, swingV = 0, lastHx = null, animTo = null;
   const holeAt = (deg) => { const a = (deg * Math.PI) / 180; return [HOLE[0] * Math.cos(a) - HOLE[1] * Math.sin(a), HOLE[0] * Math.sin(a) + HOLE[1] * Math.cos(a)]; };
   const drawKey = () => {
     keyRot.setAttribute("transform", `rotate(${angle})`);
+    keyShadow.setAttribute("transform", `rotate(${angle})`);
+    const lit = Math.min(Math.round(angle / 30), 3);
+    labelEls.forEach((l, i) => l.classList.toggle("is-lit", i === lit));
     const [hx, hy] = holeAt(angle);
-    if (lastHx !== null && !reduced) swingV -= (hx - lastHx) * 0.22;
+    if (lastHx !== null && !reduced) swingV -= (hx - lastHx) * 0.3;
     lastHx = hx;
     swingV += -swing * 0.06; swingV *= 0.93; swing += swingV;
     lanyard.setAttribute("transform", `translate(${hx} ${hy}) rotate(${swing})`);
   };
   const loop = (t) => {
     if (animTo) {
-      const k = Math.min((t - animTo.t0) / animTo.dur, 1), e = 1 - Math.pow(1 - k, 3);
+      const k = Math.min((t - animTo.t0) / animTo.dur, 1);
+      const e = 1 - Math.pow(1 - k, 3);
       angle = animTo.from + (animTo.to - animTo.from) * e;
       if (k >= 1) { const done = animTo.done; animTo = null; done && done(); }
     }
@@ -436,12 +451,13 @@
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
-  const turnTo = (to, done) => { animTo = { from: angle, to, t0: performance.now(), dur: reduced ? 1 : 420 + Math.abs(to - angle) * 4, done }; };
+  const turnTo = (to, done) => { animTo = { from: angle, to, t0: performance.now(), dur: reduced ? 1 : 300 + Math.abs(to - angle) * 6, done }; };
 
   const setLocked = (locked) => {
     document.body.classList.toggle("is-locked", locked);
     ign.classList.toggle("is-on", !locked);
-    hint.textContent = locked ? "Turn the key to start" : "Engine on · scroll or pick a gear";
+    hint.textContent = locked ? "Turn the key to start" : "Engine on";
+    sub.textContent = locked ? "Twist it, click it, or press Enter" : "Scroll, or pick a gear";
   };
   const startEngine = () => {
     if (engineOn) return;
@@ -450,15 +466,15 @@
     if (navigator.vibrate) navigator.vibrate(35);
     setLocked(false);
     sizeWheelSection(); update(); setGear();
-    setTimeout(() => $("#telemetry").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }), reduced ? 0 : 650);
+    setTimeout(() => $("#telemetry").scrollIntoView({ behavior: reduced ? "auto" : "smooth" }), reduced ? 0 : 750);
   };
   const turnKey = () => { if (!engineOn) turnTo(KEY_ON, startEngine); };
   const nudge = () => {
     ign.classList.remove("is-nudge"); void ign.offsetWidth; ign.classList.add("is-nudge");
-    swingV += 6;
+    swingV += 5;
   };
 
-  // Drag to turn, or just click / press Enter
+  // Twist by dragging round the barrel, or click / press Enter
   let drag = null;
   const pointerAngle = (e) => {
     const m = keySvg.getScreenCTM();
@@ -481,7 +497,7 @@
     if (!drag) return;
     const { moved } = drag; drag = null;
     if (!moved || angle > KEY_ON * 0.6) turnKey();
-    else turnTo(0);
+    else turnTo(0);                           // spring back to OFF
   };
   keyHost.addEventListener("pointerup", endDrag);
   keyHost.addEventListener("pointercancel", endDrag);
